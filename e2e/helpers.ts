@@ -1,25 +1,65 @@
 import type { BrowserContext } from "@playwright/test";
 import postgres from "postgres";
 
-const DEFAULT_HOURS = [1, 2, 3, 4, 5];
+function db() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is required for E2E tests that seed data");
+  return postgres(url, { max: 1, onnotice: () => {} });
+}
+
+export interface SeededHost {
+  userId: string;
+  username: string;
+}
 
 /**
- * Creates a fresh host with default Mon–Fri 09:00–17:00 hours and signs the browser in by
- * writing an Auth.js database session directly, so tests don't depend on email or Google.
+ * Creates a host. Default hours are Mon–Fri 09:00–17:00; `everyDay` opens all seven days so
+ * booking tests always find a slot whenever CI runs.
  */
-export async function signInAsNewHost(context: BrowserContext, timezone = "Africa/Lagos") {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is required for signed-in E2E tests");
-  const sql = postgres(url, { max: 1, onnotice: () => {} });
+export async function createHost(
+  opts: {
+    timezone?: string;
+    username?: boolean;
+    everyDay?: boolean;
+    meetingType?: { slug: string; name: string; requiredQuestion?: string };
+  } = {},
+): Promise<SeededHost> {
+  const sql = db();
   const userId = crypto.randomUUID();
+  const username = opts.username ? `e2e-${userId.slice(0, 8)}` : "";
+  try {
+    await sql`insert into users (id, email, name, timezone, username)
+              values (${userId}, ${`e2e-${userId}@example.com`}, 'E2E Host',
+                      ${opts.timezone ?? "Africa/Lagos"}, ${username || null})`;
+    const weekdays = opts.everyDay ? [0, 1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
+    for (const weekday of weekdays) {
+      await sql`insert into availability_rules (user_id, weekday, start_time, end_time)
+                values (${userId}, ${weekday}, ${opts.everyDay ? "00:00" : "09:00"},
+                        ${opts.everyDay ? "24:00" : "17:00"})`;
+    }
+    if (opts.meetingType) {
+      const [mt] = await sql<{ id: string }[]>`
+        insert into meeting_types (user_id, slug, name, duration_min, location_type, location_value,
+                                   min_notice_min, max_days_ahead)
+        values (${userId}, ${opts.meetingType.slug}, ${opts.meetingType.name}, 30, 'video_link',
+                'https://meet.example.com/e2e', 0, 14)
+        returning id`;
+      if (opts.meetingType.requiredQuestion) {
+        await sql`insert into custom_questions (meeting_type_id, label, type, required, position)
+                  values (${mt!.id}, ${opts.meetingType.requiredQuestion}, 'short_text', true, 0)`;
+      }
+    }
+  } finally {
+    await sql.end();
+  }
+  return { userId, username };
+}
+
+/** Signs the browser in as `userId` by writing an Auth.js database session directly. */
+export async function signIn(context: BrowserContext, userId: string) {
+  const sql = db();
   const sessionToken = crypto.randomUUID();
   try {
-    await sql`insert into users (id, email, name, timezone)
-              values (${userId}, ${`e2e-${userId}@example.com`}, 'E2E Host', ${timezone})`;
-    for (const weekday of DEFAULT_HOURS) {
-      await sql`insert into availability_rules (user_id, weekday, start_time, end_time)
-                values (${userId}, ${weekday}, '09:00', '17:00')`;
-    }
     await sql`insert into sessions (session_token, user_id, expires)
               values (${sessionToken}, ${userId}, now() + interval '1 day')`;
   } finally {
@@ -36,5 +76,22 @@ export async function signInAsNewHost(context: BrowserContext, timezone = "Afric
       sameSite: "Lax",
     },
   ]);
-  return { userId };
+}
+
+/** A fresh host with default hours, signed in. */
+export async function signInAsNewHost(context: BrowserContext, timezone = "Africa/Lagos") {
+  const host = await createHost({ timezone });
+  await signIn(context, host.userId);
+  return host;
+}
+
+export async function countBookings(userId: string): Promise<number> {
+  const sql = db();
+  try {
+    const [row] = await sql<{ n: number }[]>`
+      select count(*)::int as n from bookings where user_id = ${userId} and status = 'confirmed'`;
+    return row!.n;
+  } finally {
+    await sql.end();
+  }
 }

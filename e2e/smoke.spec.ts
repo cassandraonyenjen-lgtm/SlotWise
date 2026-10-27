@@ -18,7 +18,7 @@ test("reserved usernames are not booking pages", async ({ page }) => {
   expect(res?.status()).toBe(404);
 });
 
-test("public booking page placeholder renders", async ({ page }) => {
-  await page.goto("/jane/intro-call");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("jane / intro-call");
+test("unknown hosts and meeting types are 404s", async ({ page }) => {
+  expect((await page.goto("/no-such-host-zz"))?.status()).toBe(404);
+  expect((await page.goto("/no-such-host-zz/intro"))?.status()).toBe(404);
 });

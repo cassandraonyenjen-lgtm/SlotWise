@@ -190,8 +190,9 @@ export const customQuestions = pgTable(
     position: smallint("position").notNull(),
   },
   (t) => [
-    // At most 3 questions per meeting type (F2.5): positions 0..2, unique per type.
-    uniqueIndex("custom_questions_type_position_idx").on(t.meetingTypeId, t.position),
+    // Positions order the questions. Not unique, so edits can reorder them freely; the
+    // 3-question cap (F2.5) is enforced by the app and the 0..2 range check.
+    index("custom_questions_type_position_idx").on(t.meetingTypeId, t.position),
     check("custom_questions_position_range", sql`${t.position} BETWEEN 0 AND 2`),
   ],
 );

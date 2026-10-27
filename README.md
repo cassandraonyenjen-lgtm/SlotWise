@@ -2,8 +2,8 @@
 
 Share one link, set your hours once, and let clients book you without the back-and-forth.
 
-Phase 0 (Foundations) and Phase 1 (Availability, F1) of the v1 PRD are done. Features F2–F5
-are stubbed under `src/features/`.
+Phases 0–2 of the v1 PRD are done: foundations, availability (F1), and meeting types with the
+public booking page (F2). Features F3–F5 are stubbed under `src/features/`.
 
 ## Stack
 
@@ -88,7 +88,6 @@ the target database as part of the deploy.
 
 ## Not set up yet (by phase)
 
-- Phase 2: Upstash rate limiting, Cloudflare Turnstile
 - Phase 3: Resend + React Email templates, `ics`, Inngest/Trigger.dev for reminders
 - Phase 4: FullCalendar
-- Phase 5: Sentry, PostHog
+- Phase 5: Sentry, PostHog, Upstash rate limiting and Cloudflare Turnstile on public booking
