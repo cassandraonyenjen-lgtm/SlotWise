@@ -1,0 +1,1 @@
+export { isSlotTakenError } from "./errors";
