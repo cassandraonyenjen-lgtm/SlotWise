@@ -1,5 +1,5 @@
 /** Public (no sign-in) reads and the booking write. Takes `db` so DB tests can call it directly. */
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { Database } from "@/db";
 import {
   bookingAnswers,
@@ -130,6 +130,10 @@ export async function createBooking(
 
   try {
     const booking = await db.transaction(async (tx) => {
+      // Queue concurrent bookings for the same host. Without this, racing inserts can
+      // deadlock inside the exclusion check, and Postgres only breaks each deadlock after
+      // deadlock_timeout (1s). The constraint is still what guarantees no double-booking.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${found.host.id}, 0))`);
       const [row] = await tx
         .insert(bookings)
         .values({
