@@ -35,9 +35,24 @@ export type ServerEnv = z.infer<typeof serverSchema>;
 
 let cached: ServerEnv | undefined;
 
+/**
+ * On Vercel, the app's own address when NEXT_PUBLIC_APP_URL isn't set: the production domain
+ * for production deploys, the deployment's own URL for previews.
+ */
+function vercelUrl(): string | undefined {
+  const host =
+    process.env.VERCEL_ENV === "production"
+      ? process.env.VERCEL_PROJECT_PRODUCTION_URL
+      : process.env.VERCEL_URL;
+  return host ? `https://${host}` : undefined;
+}
+
 export function env(): ServerEnv {
   if (!cached) {
-    const parsed = serverSchema.safeParse(process.env);
+    const parsed = serverSchema.safeParse({
+      ...process.env,
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || vercelUrl(),
+    });
     if (!parsed.success) {
       throw new Error(`Invalid environment variables:\n${z.prettifyError(parsed.error)}`);
     }

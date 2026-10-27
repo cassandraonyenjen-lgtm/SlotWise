@@ -95,8 +95,9 @@ Additions beyond the PRD data model: Auth.js tables (`accounts`, `sessions`,
 
 `.github/workflows/ci.yml` runs on every PR: lint, type-check, format check and unit tests; a
 schema-drift check plus migrations and DB tests against Postgres 16; and a production build with
-Playwright E2E. Vercel's GitHub integration handles preview deploys; run `pnpm db:migrate` against
-the target database as part of the deploy.
+Playwright E2E. Vercel's GitHub integration handles deploys. On Vercel the `vercel-build` script runs
+`pnpm db:migrate` before `next build`, so each deploy applies new migrations to its own
+`DATABASE_URL` first (migrations are recorded, so re-running is a no-op).
 
 ## Launch hardening
 
