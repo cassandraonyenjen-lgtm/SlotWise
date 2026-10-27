@@ -88,3 +88,86 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* FullCalendar (F3): bookings in the brand color, blocked time muted and hatched (F3.4). */
+.sw-calendar .fc {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--background);
+  --fc-neutral-bg-color: var(--muted);
+  --fc-list-event-hover-bg-color: var(--muted);
+  --fc-today-bg-color: color-mix(in oklch, var(--booking) 6%, transparent);
+  --fc-event-bg-color: var(--booking);
+  --fc-event-border-color: var(--booking);
+  --fc-now-indicator-color: var(--destructive);
+  --fc-non-business-color: color-mix(in oklch, var(--blocked) 45%, transparent);
+  --fc-button-bg-color: var(--secondary);
+  --fc-button-border-color: var(--border);
+  --fc-button-text-color: var(--secondary-foreground);
+  --fc-button-hover-bg-color: var(--accent);
+  --fc-button-hover-border-color: var(--border);
+  --fc-button-active-bg-color: var(--primary);
+  --fc-button-active-border-color: var(--primary);
+  font-size: 0.875rem;
+}
+.sw-calendar .fc .fc-button-primary:not(:disabled).fc-button-active {
+  color: var(--primary-foreground);
+}
+.sw-calendar .fc .fc-toolbar-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.sw-calendar .fc .fc-event.sw-booking {
+  cursor: pointer;
+}
+.sw-calendar .fc .fc-event.sw-no-show {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+.sw-calendar .fc .fc-bg-event.sw-blocked,
+.sw-legend-blocked {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--blocked),
+    var(--blocked) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  opacity: 1;
+}
+.sw-calendar .fc .fc-bg-event.sw-custom-hours,
+.sw-legend-custom {
+  background: color-mix(in oklch, var(--booking) 12%, transparent);
+  opacity: 1;
+}
+.sw-calendar .fc .fc-bg-event .fc-event-title {
+  color: var(--muted-foreground);
+  font-style: normal;
+  font-size: 0.75rem;
+}
+.sw-legend {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+}
+@media (max-width: 767px) {
+  .sw-calendar .fc .fc-toolbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+/* Respect "reduce motion" (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

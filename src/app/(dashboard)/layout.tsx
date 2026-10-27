@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
+import { IdentifyHost } from "@/components/analytics";
 import { Button } from "@/components/ui/button";
 
 const nav = [
@@ -8,6 +9,7 @@ const nav = [
   { href: "/dashboard/calendar", label: "Calendar" },
   { href: "/dashboard/meeting-types", label: "Meeting types" },
   { href: "/dashboard/availability", label: "Availability" },
+  { href: "/dashboard/settings", label: "Settings" },
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -16,6 +18,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-dvh">
+      <IdentifyHost userId={session.user.id} />
       <header className="border-b">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
           <Link href="/dashboard" className="text-primary font-semibold">
