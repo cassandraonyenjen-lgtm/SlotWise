@@ -1,34 +1,16 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { auth } from "@/auth";
 import { getDb } from "@/db";
+import { invalid, type ActionResult } from "@/lib/action-result";
+import { requireUserId } from "@/lib/session";
 import { removeDateOverride, saveDateOverride, saveWeeklyHours, setTimezone } from "./queries";
 import { dateOverrideSchema, timeZoneSchema, weeklyHoursSchema } from "./schemas";
 import { isLocalDate } from "./time";
 
-export type ActionResult = { ok: true } | { ok: false; error: string; fieldErrors?: FieldErrors };
-/** Issue messages keyed by their dotted path, e.g. "days.1.0.start". */
-export type FieldErrors = Record<string, string>;
+export type { ActionResult, FieldErrors } from "@/lib/action-result";
 
 const PAGE = "/dashboard/availability";
-
-async function requireUserId(): Promise<string> {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Not signed in");
-  return session.user.id;
-}
-
-function invalid(error: z.ZodError): ActionResult {
-  const fieldErrors: FieldErrors = {};
-  for (const issue of error.issues) fieldErrors[issue.path.join(".")] ??= issue.message;
-  return {
-    ok: false,
-    error: error.issues[0]?.message ?? "Check the highlighted fields",
-    fieldErrors,
-  };
-}
 
 export async function saveWeeklyHoursAction(input: unknown): Promise<ActionResult> {
   const userId = await requireUserId();

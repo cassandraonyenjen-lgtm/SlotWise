@@ -15,6 +15,13 @@
       "when": 1793125224640,
       "tag": "0001_booking_exclusion",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793131052981,
+      "tag": "0002_question_position_not_unique",
+      "breakpoints": true
     }
   ]
 }
