@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { auth } from "@/auth";
+import { requireUserId } from "@/auth";
 import { getDb } from "@/db";
 import { CalendarView } from "@/features/calendar/components/calendar-view";
 import { toFloating } from "@/features/calendar/floating";
@@ -10,8 +10,8 @@ export const metadata: Metadata = { title: "Calendar" };
 type Props = { searchParams: Promise<{ booking?: string }> };
 
 export default async function CalendarPage({ searchParams }: Props) {
-  const session = await auth();
-  const userId = session!.user.id;
+  const userId = await requireUserId();
+
   const { booking: bookingParam } = await searchParams;
   const db = getDb();
   const [timezone, businessHours] = await Promise.all([

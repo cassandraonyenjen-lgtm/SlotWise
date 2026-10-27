@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { auth } from "@/auth";
+import { requireUserId } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDb } from "@/db";
@@ -12,8 +12,8 @@ type Item = Awaited<ReturnType<typeof getTodaySummary>>["today"][number];
 
 /** Dashboard home: today's meetings and what's next (F3 "Today" summary). */
 export default async function TodayPage() {
-  const session = await auth();
-  const { timezone, today, next } = await getTodaySummary(getDb(), session!.user.id);
+  const userId = await requireUserId();
+  const { timezone, today, next } = await getTodaySummary(getDb(), userId);
   const time = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour: "numeric",

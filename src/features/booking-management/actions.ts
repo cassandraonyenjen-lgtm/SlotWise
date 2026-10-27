@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { getDb } from "@/db";
 import { notifyBookingEvent } from "@/features/emails/dispatch";
+import { trackServer } from "@/lib/analytics";
 import { invalid, type ActionResult } from "@/lib/action-result";
+import { RATE_LIMITED_MESSAGE, rateLimit } from "@/lib/rate-limit";
 import { requireUserId } from "@/lib/session";
 import {
   cancelBooking,
@@ -39,13 +41,22 @@ function afterChange(
   }
   // Emails go out after the response, like confirmations do.
   after(() =>
-    notifyBookingEvent(change, {
-      bookingId: result.bookingId,
-      sequence: result.sequence,
-      previousStartAt: result.previousStartAt.toISOString(),
-      previousEndAt: result.previousEndAt.toISOString(),
-      ...(message ? { message } : {}),
-    }),
+    Promise.all([
+      notifyBookingEvent(change, {
+        bookingId: result.bookingId,
+        sequence: result.sequence,
+        previousStartAt: result.previousStartAt.toISOString(),
+        previousEndAt: result.previousEndAt.toISOString(),
+        ...(message ? { message } : {}),
+      }),
+      trackServer(
+        result.hostId,
+        change === "cancelled" ? "booking_cancelled" : "booking_rescheduled",
+        {
+          by,
+        },
+      ),
+    ]),
   );
   // Only the host's pages show cached booking data. Revalidating from the invitee's page
   // would re-render it mid-flow and swap the confirmation for the "cancelled" view.
@@ -54,11 +65,16 @@ function afterChange(
 }
 
 async function bookingIdForToken(token: string) {
+  // Every token-based call counts, so guessing tokens is throttled too (F5.5).
+  if (!(await rateLimit("manage")).ok) return null;
   const found = await findBookingByManageToken(getDb(), token);
   return found?.booking.id ?? null;
 }
 
-const LINK_INVALID = { ok: false, error: "This link isn't valid any more." } as const;
+const LINK_INVALID = {
+  ok: false,
+  error: `This link isn't valid any more, or there were too many attempts. ${RATE_LIMITED_MESSAGE}`,
+} as const;
 
 // Invitee actions: the manage token is the only credential (F5.1, F5.2, F5.5).
 
@@ -163,8 +179,10 @@ export async function markNoShowAction(bookingId: string): Promise<ActionResult>
   const host = await hostActor(bookingId);
   if (!host || host.actor.kind !== "host")
     return { ok: false, error: "This booking wasn't found." };
-  const result = await markNoShow(getDb(), { bookingId: host.id, userId: host.actor.userId });
+  const userId = host.actor.userId;
+  const result = await markNoShow(getDb(), { bookingId: host.id, userId });
   if (!result.ok) return result;
+  after(() => trackServer(userId, "booking_no_show"));
   revalidatePath("/dashboard", "layout");
   return { ok: true };
 }

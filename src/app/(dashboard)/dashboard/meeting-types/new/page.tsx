@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { auth } from "@/auth";
+import { requireUserId } from "@/auth";
 import { getDb } from "@/db";
 import { env } from "@/env";
 import {
@@ -11,8 +11,8 @@ import { getUsername } from "@/features/booking-page/meeting-types";
 export const metadata: Metadata = { title: "New meeting type" };
 
 export default async function NewMeetingTypePage() {
-  const session = await auth();
-  const user = await getUsername(getDb(), session!.user.id);
+  const userId = await requireUserId();
+  const user = await getUsername(getDb(), userId);
   const host = env().NEXT_PUBLIC_APP_URL.replace(/^https?:\/\//, "");
 
   return (

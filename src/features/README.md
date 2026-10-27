@@ -11,5 +11,8 @@ import from here.
 | `emails/`             | F4 Email Confirmations & Reminders     | 3     | `/dashboard/settings`, `/api/inngest` (background jobs)                |
 | `calendar/`           | F3 Calendar View                       | 4     | `/dashboard`, `/dashboard/calendar`                                    |
 | `booking-management/` | F5 Reschedule & Cancel                 | 4     | `/manage/[token]`                                                      |
+| `account/`            | §8 Privacy (data export, deletion)     | 5     | `/dashboard/settings`, `/api/account/export`                           |
 
 All five v1 features are built: F1 (Phase 1), F2 (Phase 2), F4 (Phase 3), and F3 and F5 (Phase 4).
+Phase 5 added launch hardening around them: `account/` here, plus shared pieces in `src/lib`
+(rate limits, Turnstile, logging, analytics, token scrubbing).

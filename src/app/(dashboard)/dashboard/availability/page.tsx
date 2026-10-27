@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { auth } from "@/auth";
+import { requireUserId } from "@/auth";
 import { getDb } from "@/db";
 import { DateOverrides } from "@/features/availability/components/date-overrides";
 import { TimezonePicker } from "@/features/availability/components/timezone-picker";
@@ -10,8 +10,8 @@ import { localDateOf } from "@/features/availability/time";
 export const metadata: Metadata = { title: "Availability" };
 
 export default async function AvailabilityPage() {
-  const session = await auth();
-  const userId = session!.user.id; // The dashboard layout already redirects signed-out visitors.
+  const userId = await requireUserId();
+
   const db = getDb();
   const now = new Date();
   const [availability, flagged] = await Promise.all([

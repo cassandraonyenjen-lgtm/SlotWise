@@ -5,6 +5,7 @@ import { ManageBooking } from "@/features/booking-management/components/manage-b
 import { findBookingByManageToken } from "@/features/booking-management/manage";
 import { LOCATION_LABELS } from "@/features/booking-page/schemas";
 import { formatMeetingTime } from "@/features/emails/format";
+import { RATE_LIMITED_MESSAGE, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,13 @@ type Props = {
 /** Where an invitee lands from "Reschedule" or "Cancel" in their emails (F5.1, F5.2, F5.4). */
 export default async function ManageBookingPage({ params, searchParams }: Props) {
   const [{ token }, { action }] = await Promise.all([params, searchParams]);
+  if (!(await rateLimit("manage")).ok) {
+    return (
+      <Shell title="Too many attempts">
+        <p className="text-sm">{RATE_LIMITED_MESSAGE}</p>
+      </Shell>
+    );
+  }
   const found = await findBookingByManageToken(getDb(), token);
 
   if (!found) {

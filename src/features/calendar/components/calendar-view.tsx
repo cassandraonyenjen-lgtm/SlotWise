@@ -59,7 +59,8 @@ export function CalendarView(props: CalendarViewProps) {
 
   useEffect(() => {
     if (detail && window.matchMedia(MOBILE).matches) {
-      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      panelRef.current?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
     }
   }, [detail]);
 

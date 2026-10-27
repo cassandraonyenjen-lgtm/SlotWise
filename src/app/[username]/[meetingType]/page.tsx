@@ -6,6 +6,7 @@ import { getDb } from "@/db";
 import { BookingFlow } from "@/features/booking-page/components/booking-flow";
 import { getPublicMeetingType } from "@/features/booking-page/public";
 import { LOCATION_LABELS } from "@/features/booking-page/schemas";
+import { env } from "@/env";
 
 type Params = { params: Promise<{ username: string; meetingType: string }> };
 
@@ -45,6 +46,7 @@ export default async function BookMeetingPage({ params }: Params) {
         slug={mt.slug}
         durationMin={mt.durationMin}
         maxDaysAhead={mt.maxDaysAhead}
+        turnstileSiteKey={env().NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? null}
         questions={mt.questions.map((q) => ({
           id: q.id,
           label: q.label,

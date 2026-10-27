@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { trackServer } from "@/lib/analytics";
 import { getDb } from "@/db";
 import { invalid, type ActionResult } from "@/lib/action-result";
 import { requireUserId } from "@/lib/session";
@@ -17,6 +19,7 @@ export async function saveWeeklyHoursAction(input: unknown): Promise<ActionResul
   const parsed = weeklyHoursSchema.safeParse(input);
   if (!parsed.success) return invalid(parsed.error);
   await saveWeeklyHours(getDb(), userId, parsed.data);
+  after(() => trackServer(userId, "availability_saved"));
   revalidatePath(PAGE);
   return { ok: true };
 }

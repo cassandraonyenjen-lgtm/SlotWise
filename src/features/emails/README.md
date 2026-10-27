@@ -51,7 +51,14 @@ Verify the sending domain in Resend and add the SPF and DKIM records it gives yo
 DMARC record (start with `v=DMARC1; p=none; rua=mailto:you@yourdomain`). `EMAIL_FROM` must
 use that domain.
 
+## Delivery tracking
+
+In Resend → Webhooks, point a webhook at `/api/webhooks/resend` with the `email.delivered`,
+`email.bounced` and `email.complained` events, and set `RESEND_WEBHOOK_SECRET` to its signing
+secret. Each event updates the matching `email_log` row by provider id (`webhooks.ts`); a
+bounce or complaint is never overwritten by a later "delivered". `/api/health` reports the
+24-hour failure rate (failed + bounced) for an uptime monitor to alert on above 2%.
+
 ## Not done yet
 
 - Logo upload. The template already shows `users.logo_url` when it's set.
-- Bounce and complaint webhooks from Resend into `email_log.status`.
