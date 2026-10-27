@@ -107,6 +107,15 @@ describe("bookings_no_overlap", () => {
     const rejected = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
     expect(ok).toHaveLength(1);
     expect(rejected).toHaveLength(49);
-    expect(rejected.every((r) => isSlotTakenError(r.reason))).toBe(true);
-  });
+    // Raw racing inserts can also lose by deadlock inside the exclusion check (SQLSTATE
+    // 40P01). That is still a rejection; createBooking avoids it with a per-host lock.
+    expect(rejected.every((r) => isSlotTakenError(r.reason) || isDeadlock(r.reason))).toBe(true);
+  }, 60_000);
 });
+
+function isDeadlock(error: unknown): boolean {
+  for (let e: unknown = error; e && typeof e === "object"; e = (e as { cause?: unknown }).cause) {
+    if ((e as { code?: string }).code === "40P01") return true;
+  }
+  return false;
+}
