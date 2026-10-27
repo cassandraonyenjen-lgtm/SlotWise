@@ -19,7 +19,7 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-header"
-      className={cn("grid auto-rows-min items-start gap-1.5 px-6", className)}
+      className={cn("grid auto-rows-min items-start gap-1.5 px-4 sm:px-6", className)}
       {...props}
     />
   );
@@ -46,12 +46,16 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 function CardContent({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="card-content" className={cn("px-6", className)} {...props} />;
+  return <div data-slot="card-content" className={cn("px-4 sm:px-6", className)} {...props} />;
 }
 
 function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div data-slot="card-footer" className={cn("flex items-center px-6", className)} {...props} />
+    <div
+      data-slot="card-footer"
+      className={cn("flex items-center px-4 sm:px-6", className)}
+      {...props}
+    />
   );
 }
 

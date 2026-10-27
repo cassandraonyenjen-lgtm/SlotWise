@@ -2,8 +2,8 @@
 
 Share one link, set your hours once, and let clients book you without the back-and-forth.
 
-This repo is at **Phase 0 (Foundations)** of the v1 PRD: tooling, auth, database schema and
-CI are in place; features F1–F5 are stubbed under `src/features/`.
+Phase 0 (Foundations) and Phase 1 (Availability, F1) of the v1 PRD are done. Features F2–F5
+are stubbed under `src/features/`.
 
 ## Stack
 
