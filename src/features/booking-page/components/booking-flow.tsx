@@ -3,6 +3,7 @@
 import { CalendarPlus, ChevronLeft, Download } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
+import { Turnstile } from "@/components/turnstile";
 import { Input } from "@/components/ui/input";
 import type { FieldErrors } from "@/lib/action-result";
 import { bookSlotAction, type BookingConfirmation } from "../booking-actions";
@@ -17,6 +18,8 @@ export interface BookingFlowProps {
   durationMin: number;
   maxDaysAhead: number;
   questions: { id: string; label: string; type: "short_text" | "long_text"; required: boolean }[];
+  /** Cloudflare Turnstile site key; null when bot protection is off. */
+  turnstileSiteKey?: string | null;
 }
 
 type Step = "pick" | "details" | "done";
@@ -28,6 +31,9 @@ type Step = "pick" | "details" | "done";
 export function BookingFlow(props: BookingFlowProps) {
   const { username, slug, durationMin, maxDaysAhead, questions } = props;
   const [timeZone, setTimeZone] = useBrowserTimeZone();
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileReset, setTurnstileReset] = useState(0);
+  const needsTurnstile = Boolean(props.turnstileSiteKey);
   const [reloadKey, setReloadKey] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -88,7 +94,9 @@ export function BookingFlow(props: BookingFlowProps) {
       return;
     }
     startTransition(async () => {
-      const result = await bookSlotAction(input);
+      const result = await bookSlotAction({ ...input, turnstileToken });
+      // A token is single-use; get a fresh one for any retry.
+      if (!result.ok) setTurnstileReset((k) => k + 1);
       if (result.ok) {
         setConfirmation(result.data);
         setStep("done");
@@ -194,8 +202,13 @@ export function BookingFlow(props: BookingFlowProps) {
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
           </Field>
+          <Turnstile
+            siteKey={props.turnstileSiteKey ?? null}
+            onToken={setTurnstileToken}
+            resetKey={turnstileReset}
+          />
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending || (needsTurnstile && !turnstileToken)}>
               {pending ? "Booking…" : "Confirm booking"}
             </Button>
             <p role="status" className="text-destructive text-sm">

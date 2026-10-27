@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { auth } from "@/auth";
+import { requireUserId } from "@/auth";
 import { getDb } from "@/db";
 import { env } from "@/env";
 import { MeetingTypeForm } from "@/features/booking-page/components/meeting-type-form";
@@ -12,12 +12,9 @@ export const metadata: Metadata = { title: "Edit meeting type" };
 export default async function EditMeetingTypePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!z.uuid().safeParse(id).success) notFound();
-  const session = await auth();
+  const userId = await requireUserId();
   const db = getDb();
-  const [user, mt] = await Promise.all([
-    getUsername(db, session!.user.id),
-    getMeetingType(db, session!.user.id, id),
-  ]);
+  const [user, mt] = await Promise.all([getUsername(db, userId), getMeetingType(db, userId, id)]);
   if (!mt) notFound();
   const host = env().NEXT_PUBLIC_APP_URL.replace(/^https?:\/\//, "");
 

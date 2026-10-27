@@ -2,15 +2,17 @@
 
 Share one link, set your hours once, and let clients book you without the back-and-forth.
 
-Phases 0–4 of the v1 PRD are done: foundations, availability (F1), meeting types with the
-public booking page (F2), the host calendar (F3), email confirmations and reminders (F4), and
-reschedule/cancel (F5). Phase 5 (launch hardening) is next.
+All v1 phases of the PRD are built: foundations, availability (F1), meeting types with the
+public booking page (F2), the host calendar (F3), email confirmations and reminders (F4),
+reschedule/cancel (F5), and launch hardening (rate limits, bot checks, error tracking,
+analytics, security headers, data export/deletion, legal pages, accessibility checks).
 
 ## Stack
 
 Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS v4 + shadcn/ui · Drizzle ORM +
 PostgreSQL · Auth.js v5 (magic link via Resend, Google OAuth) · Zod · date-fns + @date-fns/tz ·
-Resend + React Email · Inngest · FullCalendar · Vitest · Playwright · GitHub Actions
+Resend + React Email · Inngest · FullCalendar · Upstash Ratelimit · Cloudflare Turnstile · Sentry ·
+PostHog · Vitest · Playwright (+ axe) · GitHub Actions
 
 ## Getting started
 
@@ -96,6 +98,27 @@ schema-drift check plus migrations and DB tests against Postgres 16; and a produ
 Playwright E2E. Vercel's GitHub integration handles preview deploys; run `pnpm db:migrate` against
 the target database as part of the deploy.
 
-## Not set up yet (by phase)
+## Launch hardening
 
-- Phase 5: Sentry, PostHog, Upstash rate limiting and Cloudflare Turnstile on public booking
+- **Abuse:** rate limits (`src/lib/rate-limit.ts`) on the slots API, booking, manage links and
+  magic-link sign-in, shared through Upstash Redis when it's configured and per-server in
+  memory otherwise. Turnstile guards the booking form when its keys are set.
+- **Errors:** Sentry on server, edge and browser, only when a DSN is set. Manage-link tokens
+  are replaced with `/manage/[token]` in every event, breadcrumb and log line
+  (`src/lib/scrub.ts`). Server logs are one JSON object per line (`src/lib/log.ts`).
+- **Analytics:** PostHog without cookies (in-memory persistence, no autocapture). Server-side
+  events for sign-up, availability, meeting types, and booking created/rescheduled/cancelled.
+- **Headers:** CSP, `X-Frame-Options: DENY`, `nosniff`, a strict referrer policy, a
+  permissions policy, and HSTS in production (`next.config.ts`).
+- **Privacy:** data export and account deletion on Settings; privacy, terms and cookie pages.
+- **Accessibility:** `e2e/a11y.spec.ts` runs axe (WCAG 2.2 AA rules) on the public, manage and
+  dashboard pages. Animations respect `prefers-reduced-motion`.
+
+## Before launch
+
+1. Have a lawyer review `/privacy`, `/terms` and `/cookies`, and set `LEGAL_CONTACT_EMAIL`.
+2. Verify the sending domain in Resend with SPF, DKIM and DMARC (see `src/features/emails`).
+3. Add the Resend webhook and `RESEND_WEBHOOK_SECRET`.
+4. Set the Upstash, Turnstile, Sentry and PostHog keys from `.env.example` in Vercel.
+5. Point an uptime monitor at `/api/health`; alert when it isn't 200 or `emailFailureRate`
+   is above 0.02.

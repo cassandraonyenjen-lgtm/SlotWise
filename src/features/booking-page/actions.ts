@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { trackServer } from "@/lib/analytics";
 import { redirect } from "next/navigation";
 import { getDb } from "@/db";
 import { invalid, type ActionResult } from "@/lib/action-result";
@@ -32,6 +34,12 @@ export async function createMeetingTypeAction(input: unknown): Promise<ActionRes
   if (!parsed.success) return invalid(parsed.error);
   const result = await createMeetingType(getDb(), userId, parsed.data);
   if (!result.ok) return fromSave(result);
+  after(() =>
+    trackServer(userId, "meeting_type_created", {
+      durationMin: parsed.data.durationMin,
+      questions: parsed.data.questions.length,
+    }),
+  );
   revalidatePath(LIST);
   redirect(LIST);
 }
@@ -61,6 +69,7 @@ export async function setUsernameAction(input: unknown): Promise<ActionResult> {
   const result = await setUsername(getDb(), userId, parsed.data);
   if (!result.ok)
     return { ok: false, error: result.error, fieldErrors: { username: result.error } };
+  after(() => trackServer(userId, "username_set"));
   revalidatePath(LIST);
   return { ok: true };
 }

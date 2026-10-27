@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { getDb } from "@/db";
 import { getPublicSlots } from "@/features/booking-page/public";
+import { RATE_LIMITED_MESSAGE, rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,13 @@ const querySchema = z.object({
  * Returns UTC start times; the browser renders them in the invitee's zone (F2.3).
  */
 export async function GET(request: NextRequest) {
+  const limited = await rateLimit("slots");
+  if (!limited.ok) {
+    return Response.json(
+      { error: RATE_LIMITED_MESSAGE },
+      { status: 429, headers: { "Retry-After": String(limited.retryAfter) } },
+    );
+  }
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
   if (!parsed.success) return Response.json({ error: "Invalid query" }, { status: 400 });
 

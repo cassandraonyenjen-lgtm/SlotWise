@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { env } from "@/env";
 import { BOOKING_EVENTS, inngest, type BookingEventData } from "@/inngest/client";
 import { sendBookingNotifications, type BookingChange } from "./send";
+import { log } from "@/lib/log";
 import { getTransport } from "./transport";
 
 /**
@@ -24,6 +25,6 @@ export async function notifyBookingEvent(change: BookingChange, data: BookingEve
       message: data.message,
     });
   } catch (error) {
-    console.error(`[email] ${change} notification for booking ${data.bookingId} failed`, error);
+    log.error("email notification failed", { change, bookingId: data.bookingId, error });
   }
 }

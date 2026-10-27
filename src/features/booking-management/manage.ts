@@ -65,6 +65,7 @@ export type ChangeResult =
   | {
       ok: true;
       bookingId: string;
+      hostId: string;
       /** ics_sequence after the change, for emails and reminder jobs. */
       sequence: number;
       previousStartAt: Date;
@@ -155,6 +156,7 @@ export async function cancelBooking(
   return {
     ok: true,
     bookingId: booking.id,
+    hostId: booking.userId,
     sequence: updated.sequence,
     previousStartAt: booking.startAt,
     previousEndAt: booking.endAt,
@@ -247,6 +249,7 @@ export async function rescheduleBooking(
     return {
       ok: true,
       bookingId: booking.id,
+      hostId: booking.userId,
       sequence: updated.sequence,
       previousStartAt: booking.startAt,
       previousEndAt: booking.endAt,

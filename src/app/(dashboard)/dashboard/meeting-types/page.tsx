@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { auth } from "@/auth";
+import { requireUserId } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getDb } from "@/db";
@@ -12,8 +12,8 @@ import { LOCATION_LABELS, MAX_MEETING_TYPES } from "@/features/booking-page/sche
 export const metadata: Metadata = { title: "Meeting types" };
 
 export default async function MeetingTypesPage() {
-  const session = await auth();
-  const userId = session!.user.id;
+  const userId = await requireUserId();
+
   const db = getDb();
   const [user, types] = await Promise.all([getUsername(db, userId), listMeetingTypes(db, userId)]);
   const appUrl = env().NEXT_PUBLIC_APP_URL;

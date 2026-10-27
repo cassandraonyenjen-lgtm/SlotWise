@@ -3,7 +3,10 @@
 import { after } from "next/server";
 import { getDb } from "@/db";
 import { notifyBookingEvent } from "@/features/emails/dispatch";
+import { trackServer } from "@/lib/analytics";
 import { invalid, type ActionResult } from "@/lib/action-result";
+import { clientIp, RATE_LIMITED_MESSAGE, rateLimit } from "@/lib/rate-limit";
+import { verifyTurnstile } from "@/lib/turnstile";
 import { buildIcs, type CalendarEvent } from "./calendar-links";
 import { createBooking } from "./public";
 import { bookingRequestSchema, LOCATION_LABELS } from "./schemas";
@@ -24,8 +27,14 @@ export type BookResult =
 
 /** Public: no sign-in. Invitees book with just a name and email (F2.4). */
 export async function bookSlotAction(input: unknown): Promise<BookResult> {
+  const ip = await clientIp();
+  if (!(await rateLimit("booking", ip)).ok) return { ok: false, error: RATE_LIMITED_MESSAGE };
   const parsed = bookingRequestSchema.safeParse(input);
   if (!parsed.success) return invalid(parsed.error);
+  const token = (input as { turnstileToken?: unknown } | null)?.turnstileToken;
+  if (!(await verifyTurnstile(token, ip))) {
+    return { ok: false, error: "We couldn't verify you're not a bot. Please try again." };
+  }
 
   const result = await createBooking(getDb(), parsed.data);
   if (!result.ok) {
@@ -64,7 +73,14 @@ export async function bookSlotAction(input: unknown): Promise<BookResult> {
 
   // Emails go out after the response, so the invitee sees the confirmation right away.
   after(() =>
-    notifyBookingEvent("created", { bookingId: booking.id, sequence: booking.icsSequence }),
+    Promise.all([
+      notifyBookingEvent("created", { bookingId: booking.id, sequence: booking.icsSequence }),
+      trackServer(booking.userId, "booking_created", {
+        durationMin: Math.round((+booking.endAt - +booking.startAt) / 60_000),
+        leadTimeHours: Math.round((+booking.startAt - Date.now()) / 3_600_000),
+        hasNotes: Boolean(booking.notes),
+      }),
+    ]),
   );
   return {
     ok: true,

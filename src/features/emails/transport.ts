@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { env } from "@/env";
+import { log } from "@/lib/log";
 
 export interface OutgoingEmail {
   from: string;
@@ -43,7 +44,10 @@ export class ResendTransport implements EmailTransport {
 /** Development fallback when no Resend key is set: logs instead of sending. */
 export class ConsoleTransport implements EmailTransport {
   async send(email: OutgoingEmail) {
-    console.info(`[email] to=${email.to} subject="${email.subject}" key=${email.idempotencyKey}`);
+    log.info("email logged instead of sent", {
+      subject: email.subject,
+      idempotencyKey: email.idempotencyKey,
+    });
     return { id: `console-${email.idempotencyKey}` };
   }
 }
@@ -67,7 +71,7 @@ export function getTransport(): EmailTransport {
   const key = e.RESEND_API_KEY ?? e.AUTH_RESEND_KEY;
   if (key) return new ResendTransport(key);
   if (e.NODE_ENV === "production") {
-    console.warn("[email] No RESEND_API_KEY set; emails are only being logged.");
+    log.warn("No RESEND_API_KEY set; emails are only being logged.");
   }
   return new ConsoleTransport();
 }

@@ -16,6 +16,17 @@ const serverSchema = z.object({
   /** Set in production (Inngest Cloud) to send events; INNGEST_DEV=1 uses the local dev server. */
   INNGEST_EVENT_KEY: z.string().optional(),
   INNGEST_DEV: z.string().optional(),
+  /** Rate limits are shared across instances via Upstash; without it each instance counts alone. */
+  UPSTASH_REDIS_REST_URL: z.url().optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
+  /** Cloudflare Turnstile on the public booking form. Both unset = check skipped. */
+  TURNSTILE_SECRET_KEY: z.string().optional(),
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: z.string().optional(),
+  /** Resend webhook signing secret, for bounce and complaint events. */
+  RESEND_WEBHOOK_SECRET: z.string().optional(),
+  /** Server-side product analytics. Unset = no events sent. */
+  NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
+  NEXT_PUBLIC_POSTHOG_HOST: z.url().default("https://us.i.posthog.com"),
   NEXT_PUBLIC_APP_URL: z.url().default("http://localhost:3000"),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
