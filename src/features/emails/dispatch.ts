@@ -21,6 +21,7 @@ export async function notifyBookingEvent(change: BookingChange, data: BookingEve
     await sendBookingNotifications(getDb(), getTransport(), change, data.bookingId, {
       previousStartAt: data.previousStartAt ? new Date(data.previousStartAt) : undefined,
       previousEndAt: data.previousEndAt ? new Date(data.previousEndAt) : undefined,
+      message: data.message,
     });
   } catch (error) {
     console.error(`[email] ${change} notification for booking ${data.bookingId} failed`, error);

@@ -1,4 +1,5 @@
 import type { BrowserContext } from "@playwright/test";
+import { createHash, randomBytes } from "node:crypto";
 import postgres from "postgres";
 
 function db() {
@@ -10,6 +11,7 @@ function db() {
 export interface SeededHost {
   userId: string;
   username: string;
+  meetingTypeId: string | null;
 }
 
 /**
@@ -27,6 +29,7 @@ export async function createHost(
   const sql = db();
   const userId = crypto.randomUUID();
   const username = opts.username ? `e2e-${userId.slice(0, 8)}` : "";
+  let meetingTypeId: string | null = null;
   try {
     await sql`insert into users (id, email, name, timezone, username)
               values (${userId}, ${`e2e-${userId}@example.com`}, 'E2E Host',
@@ -44,6 +47,7 @@ export async function createHost(
         values (${userId}, ${opts.meetingType.slug}, ${opts.meetingType.name}, 30, 'video_link',
                 'https://meet.example.com/e2e', 0, 14)
         returning id`;
+      meetingTypeId = mt!.id;
       if (opts.meetingType.requiredQuestion) {
         await sql`insert into custom_questions (meeting_type_id, label, type, required, position)
                   values (${mt!.id}, ${opts.meetingType.requiredQuestion}, 'short_text', true, 0)`;
@@ -52,7 +56,7 @@ export async function createHost(
   } finally {
     await sql.end();
   }
-  return { userId, username };
+  return { userId, username, meetingTypeId };
 }
 
 /** Signs the browser in as `userId` by writing an Auth.js database session directly. */
@@ -107,4 +111,52 @@ export async function sentEmailTypes(userId: string): Promise<string[]> {
   } finally {
     await sql.end();
   }
+}
+
+/**
+ * Inserts a confirmed booking directly and returns its manage-link token. Only the token's
+ * hash is stored, so any random token works without knowing the server's secret.
+ */
+export async function insertBooking(
+  host: SeededHost,
+  startAt: Date,
+  opts: { inviteeName?: string; inviteeTimezone?: string } = {},
+): Promise<{ bookingId: string; token: string }> {
+  if (!host.meetingTypeId) throw new Error("Host needs a meeting type");
+  const sql = db();
+  const token = randomBytes(32).toString("base64url");
+  const hash = createHash("sha256").update(token).digest("hex");
+  try {
+    const [row] = await sql<{ id: string }[]>`
+      insert into bookings (user_id, meeting_type_id, start_at, end_at, invitee_name, invitee_email,
+                            invitee_timezone, manage_token_hash, ics_uid)
+      values (${host.userId}, ${host.meetingTypeId}, ${startAt},
+              ${new Date(startAt.getTime() + 30 * 60_000)}, ${opts.inviteeName ?? "Ada Lovelace"},
+              'ada@example.com', ${opts.inviteeTimezone ?? "Europe/London"}, ${hash},
+              ${`${crypto.randomUUID()}@slotwise.app`})
+      returning id`;
+    await sql`insert into booking_events (booking_id, type, actor)
+              values (${row!.id}, 'created', 'invitee')`;
+    return { bookingId: row!.id, token };
+  } finally {
+    await sql.end();
+  }
+}
+
+export async function getBooking(bookingId: string) {
+  const sql = db();
+  try {
+    const [row] = await sql<
+      { status: string; start_at: Date; cancel_reason: string | null; ics_sequence: number }[]
+    >`select status, start_at, cancel_reason, ics_sequence from bookings where id = ${bookingId}`;
+    return row!;
+  } finally {
+    await sql.end();
+  }
+}
+
+/** A whole-hour UTC instant `days` from now, always inside an `everyDay` host's hours. */
+export function daysFromNow(days: number, hourUtc = 10): Date {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + days, hourUtc));
 }

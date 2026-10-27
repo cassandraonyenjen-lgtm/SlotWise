@@ -9,6 +9,8 @@ export interface BookingEventData {
   sequence: number;
   previousStartAt?: string;
   previousEndAt?: string;
+  /** A note from whoever made the change, shown in the email. */
+  message?: string;
 }
 
 export const BOOKING_EVENTS = {

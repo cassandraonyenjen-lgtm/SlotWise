@@ -151,15 +151,26 @@ export async function findBookingsOnBlockedDates(
  * Everything computeSlots needs for one meeting type, or null if it can't be booked
  * (missing or disabled).
  */
+export interface SlotQueryOptions {
+  /** Treat this booking's time as free, for rescheduling it (F5.1). */
+  excludeBookingId?: string;
+  /** Hosts can still move bookings of a meeting type they've switched off. */
+  includeInactive?: boolean;
+}
+
 export async function loadSlotQuery(
   db: Database,
   meetingTypeId: string,
   from: Date,
   to: Date,
   now = new Date(),
+  options: SlotQueryOptions = {},
 ): Promise<SlotQuery | null> {
   const meetingType = await db.query.meetingTypes.findFirst({
-    where: and(eq(meetingTypes.id, meetingTypeId), eq(meetingTypes.isActive, true)),
+    where: and(
+      eq(meetingTypes.id, meetingTypeId),
+      options.includeInactive ? undefined : eq(meetingTypes.isActive, true),
+    ),
     with: { user: { columns: { id: true, timezone: true } } },
   });
   if (!meetingType) return null;
@@ -191,6 +202,7 @@ export async function loadSlotQuery(
         and(
           eq(bookings.userId, user.id),
           ne(bookings.status, "cancelled"),
+          options.excludeBookingId ? ne(bookings.id, options.excludeBookingId) : undefined,
           lt(bookings.startAt, busyTo),
           gt(bookings.endAt, busyFrom),
         ),

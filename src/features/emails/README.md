@@ -4,8 +4,9 @@ Stories F4.1–F4.5. Built in Phase 3.
 
 ## How an email gets sent
 
-1. A booking changes. `bookSlotAction` calls `notifyBookingEvent("created", …)` from
-   `dispatch.ts`, inside Next's `after()` so the invitee isn't kept waiting.
+1. A booking changes. `bookSlotAction` (and the reschedule/cancel actions in
+   `booking-management/actions.ts`) call `notifyBookingEvent(…)` from `dispatch.ts`, inside
+   Next's `after()` so nobody is kept waiting.
 2. With Inngest configured, that sends a `booking/created` (or `rescheduled`, `cancelled`)
    event. Two functions in `src/inngest/functions.ts` pick it up:
    - `booking-notifications` sends the confirmation / host notice (or reschedule / cancel
@@ -53,6 +54,4 @@ use that domain.
 ## Not done yet
 
 - Logo upload. The template already shows `users.logo_url` when it's set.
-- Reschedule and cancel emails are ready, but nothing triggers them until F5 (Phase 4)
-  builds the manage page.
 - Bounce and complaint webhooks from Resend into `email_log.status`.

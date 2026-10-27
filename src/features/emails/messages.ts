@@ -18,6 +18,8 @@ export interface MessageOptions {
   /** Reschedules: where the meeting used to be. */
   previousStartAt?: Date;
   previousEndAt?: Date;
+  /** Reschedules: an optional note from whoever moved it. */
+  message?: string;
 }
 
 export interface BuiltMessage {
@@ -52,7 +54,12 @@ export async function buildMessage(
     { label: "Reschedule", href: `${manageUrl}?action=reschedule` },
     { label: "Cancel", href: `${manageUrl}?action=cancel` },
   ];
-  const dashboardButton = [{ label: "Open your dashboard", href: `${options.appUrl}/dashboard` }];
+  const dashboardButton = [
+    {
+      label: "View in Slotwise",
+      href: `${options.appUrl}/dashboard/calendar?booking=${booking.id}`,
+    },
+  ];
   const inviteeRows: [string, string][] = [
     ["Invitee", `${inviteeName} <${booking.inviteeEmail}>`],
     ...answers.map((a): [string, string] => [a.label, a.answer]),
@@ -113,7 +120,14 @@ export async function buildMessage(
             : `Your ${meetingType.name} with ${inviteeName} has been cancelled.`,
         rows: [
           ["Was", when],
-          ...(booking.cancelReason ? [["Reason", booking.cancelReason] as [string, string]] : []),
+          ...(booking.cancelReason
+            ? [
+                [
+                  booking.cancelledBy === "host" ? `Note from ${hostName}` : "Reason",
+                  booking.cancelReason,
+                ] as [string, string],
+              ]
+            : []),
         ],
         buttons:
           recipient === "invitee" && host.username
@@ -136,6 +150,7 @@ export async function buildMessage(
           ["New time", when],
           ...(previous ? [["Previously", previous] as [string, string]] : []),
           where,
+          ...(options.message ? [["Note", options.message] as [string, string]] : []),
         ],
         buttons: recipient === "invitee" ? manageButtons : dashboardButton,
       };

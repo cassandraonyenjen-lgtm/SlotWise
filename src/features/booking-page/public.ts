@@ -14,6 +14,7 @@ import { loadSlotQuery } from "@/features/availability/queries";
 import { isReservedUsername } from "@/lib/usernames";
 import { hashManageToken, manageTokenFor } from "@/lib/tokens";
 import { isSlotTakenError } from "./errors";
+import { lockHostBookings } from "./locks";
 import type { bookingRequestSchema } from "./schemas";
 import type { z } from "zod";
 
@@ -130,6 +131,7 @@ export async function createBooking(
 
   try {
     const booking = await db.transaction(async (tx) => {
+      await lockHostBookings(tx, found.host.id);
       const [row] = await tx
         .insert(bookings)
         .values({
