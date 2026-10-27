@@ -12,4 +12,4 @@ import from here.
 | `calendar/`           | F3 Calendar View                       | 4     | `/dashboard`, `/dashboard/calendar`                                    |
 | `booking-management/` | F5 Reschedule & Cancel                 | 4     | `/manage/[token]`                                                      |
 
-Everything here is a stub from Phase 0. Functions that aren't built yet throw `NotImplemented`.
+F1 is built (Phase 1). The others are still Phase 0 stubs; functions that aren't built yet throw `NotImplementedError`.

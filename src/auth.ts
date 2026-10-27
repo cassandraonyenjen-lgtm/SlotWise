@@ -5,6 +5,7 @@ import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { getDb } from "@/db";
 import { accounts, sessions, users, verificationTokens } from "@/db/schema";
 import { env } from "@/env";
+import { seedDefaultAvailability } from "@/features/availability/queries";
 
 /**
  * Auth.js v5: passwordless magic link (Resend) + Google OAuth, database sessions.
@@ -29,6 +30,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
     providers,
     pages: { signIn: "/sign-in", verifyRequest: "/sign-in/check-email" },
     trustHost: true,
+    events: {
+      // New hosts start with Mon–Fri 09:00–17:00 so their booking page works immediately.
+      async createUser({ user }) {
+        if (user.id) await seedDefaultAvailability(getDb(), user.id);
+      },
+    },
     callbacks: {
       session({ session, user }) {
         session.user.id = user.id;
