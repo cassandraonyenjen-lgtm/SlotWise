@@ -1,6 +1,8 @@
 "use server";
 
+import { after } from "next/server";
 import { getDb } from "@/db";
+import { notifyBookingEvent } from "@/features/emails/dispatch";
 import { invalid, type ActionResult } from "@/lib/action-result";
 import { buildIcs, type CalendarEvent } from "./calendar-links";
 import { createBooking } from "./public";
@@ -60,7 +62,10 @@ export async function bookSlotAction(input: unknown): Promise<BookResult> {
     organizer: { name: hostName, email: host.email },
   };
 
-  // TODO(Phase 3): send confirmation emails with the manage link built from result.manageToken.
+  // Emails go out after the response, so the invitee sees the confirmation right away.
+  after(() =>
+    notifyBookingEvent("created", { bookingId: booking.id, sequence: booking.icsSequence }),
+  );
   return {
     ok: true,
     data: {

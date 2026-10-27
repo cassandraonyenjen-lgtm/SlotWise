@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: { tsconfigPaths: true },
   test: {
+    env: { AUTH_SECRET: process.env.AUTH_SECRET ?? "test-only-secret" },
     projects: [
       {
         extends: true,

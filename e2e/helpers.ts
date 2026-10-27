@@ -95,3 +95,16 @@ export async function countBookings(userId: string): Promise<number> {
     await sql.end();
   }
 }
+
+/** Emails logged as sent for a host's bookings, e.g. ["host_notification", "invitee_confirmation"]. */
+export async function sentEmailTypes(userId: string): Promise<string[]> {
+  const sql = db();
+  try {
+    const rows = await sql<{ type: string }[]>`
+      select e.type from email_log e join bookings b on b.id = e.booking_id
+      where b.user_id = ${userId} and e.status = 'sent' order by e.type::text`;
+    return rows.map((r) => r.type);
+  } finally {
+    await sql.end();
+  }
+}
