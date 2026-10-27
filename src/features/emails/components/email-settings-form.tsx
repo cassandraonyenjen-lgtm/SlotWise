@@ -78,7 +78,7 @@ export function EmailSettingsForm({ initial }: { initial: EmailSettings }) {
           </Field>
           <div className="flex items-center gap-3">
             <Button type="submit" disabled={pending}>
-              Save
+              Save email settings
             </Button>
             <p role="status" className="text-muted-foreground text-sm">
               {status}

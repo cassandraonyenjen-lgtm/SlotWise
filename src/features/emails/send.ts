@@ -108,6 +108,7 @@ export interface NotifyOptions {
   appUrl?: string;
   previousStartAt?: Date;
   previousEndAt?: Date;
+  message?: string;
 }
 
 function senderFor(ctx: BookingContext) {
@@ -132,6 +133,7 @@ export async function sendBookingNotifications(
       appUrl,
       previousStartAt: options.previousStartAt,
       previousEndAt: options.previousEndAt,
+      message: options.message,
     });
     outcomes.push(
       await deliver(db, transport, {

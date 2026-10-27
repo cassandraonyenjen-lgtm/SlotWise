@@ -2,15 +2,15 @@
 
 Share one link, set your hours once, and let clients book you without the back-and-forth.
 
-Phases 0–3 of the v1 PRD are done: foundations, availability (F1), meeting types with the
-public booking page (F2), and email confirmations and reminders (F4). F3 and F5 are stubbed
-under `src/features/`.
+Phases 0–4 of the v1 PRD are done: foundations, availability (F1), meeting types with the
+public booking page (F2), the host calendar (F3), email confirmations and reminders (F4), and
+reschedule/cancel (F5). Phase 5 (launch hardening) is next.
 
 ## Stack
 
 Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS v4 + shadcn/ui · Drizzle ORM +
 PostgreSQL · Auth.js v5 (magic link via Resend, Google OAuth) · Zod · date-fns + @date-fns/tz ·
-Resend + React Email · Inngest · Vitest · Playwright · GitHub Actions
+Resend + React Email · Inngest · FullCalendar · Vitest · Playwright · GitHub Actions
 
 ## Getting started
 
@@ -79,7 +79,9 @@ e2e/                      Playwright smoke tests
 - **Manage links:** HMAC-SHA256 of the booking id with `MANAGE_LINK_SECRET`; only the SHA-256
   hash is stored, and background jobs rebuild links without the token passing through a queue.
 - **Reschedules are in-place updates** that bump `ics_sequence` (same ICS UID), with each change
-  logged in `booking_events` for the booking-history panel.
+  logged in `booking_events` for the booking-history panel. Writes to one host's bookings take
+  a transaction advisory lock first, so racing requests queue instead of deadlocking in the
+  exclusion check.
 - **Idempotent emails:** `email_log.idempotency_key` is unique, so retried reminder jobs can't
   double-send.
 
@@ -96,5 +98,4 @@ the target database as part of the deploy.
 
 ## Not set up yet (by phase)
 
-- Phase 4: FullCalendar
 - Phase 5: Sentry, PostHog, Upstash rate limiting and Cloudflare Turnstile on public booking

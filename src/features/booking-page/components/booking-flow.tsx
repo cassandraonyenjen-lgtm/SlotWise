@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarPlus, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { CalendarPlus, ChevronLeft, Download } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,8 @@ import type { FieldErrors } from "@/lib/action-result";
 import { bookSlotAction, type BookingConfirmation } from "../booking-actions";
 import { googleCalendarUrl, outlookCalendarUrl } from "../calendar-urls";
 import { bookingRequestSchema } from "../schemas";
-import { Field, selectClass, textareaClass } from "./field";
-
-const DAY = 86_400_000;
-const WINDOW_DAYS = 31;
+import { Field, textareaClass } from "./field";
+import { SlotPicker, useBrowserTimeZone, useSlotFormatters } from "./slot-picker";
 
 export interface BookingFlowProps {
   username: string;
@@ -29,12 +27,8 @@ type Step = "pick" | "details" | "done";
  */
 export function BookingFlow(props: BookingFlowProps) {
   const { username, slug, durationMin, maxDaysAhead, questions } = props;
-  const [timeZone, setTimeZone] = useState<string | null>(null);
-  const [windowStart, setWindowStart] = useState<number | null>(null);
-  const [firstWindow, setFirstWindow] = useState<number | null>(null);
-  const [slots, setSlots] = useState<string[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [timeZone, setTimeZone] = useBrowserTimeZone();
+  const [reloadKey, setReloadKey] = useState(0);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("pick");
@@ -49,94 +43,26 @@ export function BookingFlow(props: BookingFlowProps) {
   const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(null);
   const [pending, startTransition] = useTransition();
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const fmt = useSlotFormatters(timeZone);
 
-  // Browser-only values are read after mount so the server render stays deterministic.
-  useEffect(() => {
-    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
-    const now = Date.now();
-    setWindowStart(now);
-    setFirstWindow(now);
-  }, []);
-
-  const loadSlots = useCallback(async () => {
-    if (windowStart === null) return;
-    setSlots(null);
-    setLoadError(null);
-    const params = new URLSearchParams({
-      username,
-      slug,
-      from: new Date(windowStart).toISOString(),
-      to: new Date(windowStart + WINDOW_DAYS * DAY).toISOString(),
-    });
-    try {
+  const fetchSlots = useCallback(
+    async (from: Date, to: Date) => {
+      const params = new URLSearchParams({
+        username,
+        slug,
+        from: from.toISOString(),
+        to: to.toISOString(),
+      });
       const res = await fetch(`/api/public/slots?${params}`, { cache: "no-store" });
-      if (!res.ok) throw new Error(String(res.status));
-      const body = (await res.json()) as { slots: string[] };
-      setSlots(body.slots);
-    } catch {
-      setLoadError("We couldn't load available times. Check your connection and try again.");
-    }
-  }, [username, slug, windowStart]);
-
-  useEffect(() => {
-    void loadSlots();
-  }, [loadSlots]);
+      if (!res.ok) return null;
+      return ((await res.json()) as { slots: string[] }).slots;
+    },
+    [username, slug],
+  );
 
   useEffect(() => {
     headingRef.current?.focus();
   }, [step]);
-
-  const fmt = useMemo(() => {
-    if (!timeZone) return null;
-    return {
-      key: new Intl.DateTimeFormat("en-CA", {
-        timeZone,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }),
-      day: new Intl.DateTimeFormat(undefined, {
-        timeZone,
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-      }),
-      longDay: new Intl.DateTimeFormat(undefined, {
-        timeZone,
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      }),
-      time: new Intl.DateTimeFormat(undefined, { timeZone, hour: "numeric", minute: "2-digit" }),
-    };
-  }, [timeZone]);
-
-  const byDate = useMemo(() => {
-    const map = new Map<string, string[]>();
-    if (!slots || !fmt) return map;
-    for (const s of slots) {
-      const key = fmt.key.format(new Date(s));
-      map.set(key, [...(map.get(key) ?? []), s]);
-    }
-    return map;
-  }, [slots, fmt]);
-
-  // Keep the selected date valid as slots or the time zone change.
-  useEffect(() => {
-    if (byDate.size === 0) return setSelectedDate(null);
-    if (!selectedDate || !byDate.has(selectedDate))
-      setSelectedDate(byDate.keys().next().value ?? null);
-  }, [byDate, selectedDate]);
-
-  const zones = useMemo(() => {
-    const all = Intl.supportedValuesOf("timeZone");
-    return timeZone && !all.includes(timeZone) ? [timeZone, ...all] : all;
-  }, [timeZone]);
-
-  const lastBookable = firstWindow === null ? 0 : firstWindow + (maxDaysAhead + 1) * DAY;
-  const canGoBack = windowStart !== null && firstWindow !== null && windowStart > firstWindow;
-  const canGoForward = windowStart !== null && windowStart + WINDOW_DAYS * DAY < lastBookable;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,7 +96,7 @@ export function BookingFlow(props: BookingFlowProps) {
         setNotice(result.error);
         setSelectedSlot(null);
         setStep("pick");
-        void loadSlots();
+        setReloadKey((k) => k + 1);
       } else {
         setErrors(result.fieldErrors ?? {});
         setFormError(result.error);
@@ -281,124 +207,32 @@ export function BookingFlow(props: BookingFlowProps) {
     );
   }
 
-  const dates = [...byDate.keys()];
-  const times = selectedDate ? (byDate.get(selectedDate) ?? []) : [];
-
   return (
-    <section aria-labelledby="pick-heading" className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <h2
-          id="pick-heading"
-          ref={headingRef}
-          tabIndex={-1}
-          className="text-lg font-semibold outline-none"
-        >
-          Pick a time
-        </h2>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="invitee-tz" className="text-muted-foreground text-sm">
-            Times are shown in
-          </label>
-          <select
-            id="invitee-tz"
-            className={`${selectClass} max-w-sm`}
-            value={timeZone ?? ""}
-            onChange={(e) => setTimeZone(e.target.value)}
-            disabled={!timeZone}
+    <section aria-labelledby="pick-heading">
+      <SlotPicker
+        timeZone={timeZone}
+        onTimeZoneChange={setTimeZone}
+        fetchSlots={fetchSlots}
+        maxDaysAhead={maxDaysAhead}
+        reloadKey={reloadKey}
+        notice={notice}
+        onPick={(s) => {
+          setSelectedSlot(s);
+          setNotice(null);
+          setFormError(null);
+          setStep("details");
+        }}
+        heading={
+          <h2
+            id="pick-heading"
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-lg font-semibold outline-none"
           >
-            {zones.map((z) => (
-              <option key={z} value={z}>
-                {z.replaceAll("_", " ")}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {notice && (
-        <div
-          role="alert"
-          className="border-destructive/40 bg-destructive/5 rounded-md border p-3 text-sm"
-        >
-          {notice}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={!canGoBack}
-          onClick={() => setWindowStart((w) => Math.max(firstWindow!, w! - WINDOW_DAYS * DAY))}
-        >
-          <ChevronLeft /> Earlier
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={!canGoForward}
-          onClick={() => setWindowStart((w) => w! + WINDOW_DAYS * DAY)}
-        >
-          Later <ChevronRight />
-        </Button>
-      </div>
-
-      {loadError ? (
-        <div role="alert" className="flex flex-col items-start gap-2 text-sm">
-          {loadError}
-          <Button type="button" variant="outline" size="sm" onClick={() => void loadSlots()}>
-            Try again
-          </Button>
-        </div>
-      ) : slots === null || !fmt ? (
-        <p className="text-muted-foreground text-sm" role="status">
-          Loading available times…
-        </p>
-      ) : dates.length === 0 ? (
-        <p className="text-muted-foreground text-sm" role="status">
-          No times available in this period.{canGoForward ? " Try later dates." : ""}
-        </p>
-      ) : (
-        <>
-          <div role="group" aria-label="Available days" className="flex flex-wrap gap-2">
-            {dates.map((d) => (
-              <Button
-                key={d}
-                type="button"
-                size="sm"
-                variant={d === selectedDate ? "default" : "outline"}
-                aria-pressed={d === selectedDate}
-                onClick={() => setSelectedDate(d)}
-              >
-                {fmt.day.format(new Date(byDate.get(d)![0]!))}
-              </Button>
-            ))}
-          </div>
-          <div
-            role="group"
-            aria-label="Available times"
-            className="grid grid-cols-3 gap-2 sm:grid-cols-4"
-          >
-            {times.map((s) => (
-              <Button
-                key={s}
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setSelectedSlot(s);
-                  setNotice(null);
-                  setFormError(null);
-                  setStep("details");
-                }}
-              >
-                {fmt.time.format(new Date(s))}
-              </Button>
-            ))}
-          </div>
-        </>
-      )}
+            Pick a time
+          </h2>
+        }
+      />
     </section>
   );
 }

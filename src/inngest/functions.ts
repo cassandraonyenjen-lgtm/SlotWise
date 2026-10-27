@@ -33,6 +33,7 @@ export const bookingNotifications = inngest.createFunction(
       sendBookingNotifications(getDb(), getTransport(), change, data.bookingId, {
         previousStartAt: data.previousStartAt ? new Date(data.previousStartAt) : undefined,
         previousEndAt: data.previousEndAt ? new Date(data.previousEndAt) : undefined,
+        message: data.message,
       }),
     );
   },
