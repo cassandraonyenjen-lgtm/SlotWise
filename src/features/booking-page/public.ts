@@ -12,7 +12,7 @@ import {
 import { computeSlots, isSlotAvailable } from "@/features/availability/slots";
 import { loadSlotQuery } from "@/features/availability/queries";
 import { isReservedUsername } from "@/lib/usernames";
-import { generateManageToken } from "@/lib/tokens";
+import { hashManageToken, manageTokenFor } from "@/lib/tokens";
 import { isSlotTakenError } from "./errors";
 import type { bookingRequestSchema } from "./schemas";
 import type { z } from "zod";
@@ -81,7 +81,7 @@ export type CreateBookingResult =
   | {
       ok: true;
       booking: typeof bookings.$inferSelect;
-      /** The raw manage token. Only ever sent to the invitee (Phase 3 emails); never stored. */
+      /** The raw manage token for the invitee's links. Never stored; see manageTokenFor. */
       manageToken: string;
       host: { name: string | null; email: string; timezone: string };
       meetingType: { name: string; locationType: string; locationValue: string | null };
@@ -125,13 +125,15 @@ export async function createBooking(
   if (!query || !isSlotAvailable(query, startAt)) return { ok: false, reason: "taken" };
 
   const endAt = new Date(startAt.getTime() + meetingType.durationMin * 60_000);
-  const { token, hash } = generateManageToken();
+  const bookingId = crypto.randomUUID();
+  const token = manageTokenFor(bookingId);
 
   try {
     const booking = await db.transaction(async (tx) => {
       const [row] = await tx
         .insert(bookings)
         .values({
+          id: bookingId,
           userId: found.host.id,
           meetingTypeId: meetingType.id,
           startAt,
@@ -140,7 +142,7 @@ export async function createBooking(
           inviteeEmail: request.inviteeEmail,
           inviteeTimezone: request.inviteeTimezone,
           notes: request.notes,
-          manageTokenHash: hash,
+          manageTokenHash: hashManageToken(token),
           icsUid: `${crypto.randomUUID()}@slotwise.app`,
         })
         .returning();

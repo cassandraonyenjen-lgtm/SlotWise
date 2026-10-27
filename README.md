@@ -2,14 +2,15 @@
 
 Share one link, set your hours once, and let clients book you without the back-and-forth.
 
-Phases 0–2 of the v1 PRD are done: foundations, availability (F1), and meeting types with the
-public booking page (F2). Features F3–F5 are stubbed under `src/features/`.
+Phases 0–3 of the v1 PRD are done: foundations, availability (F1), meeting types with the
+public booking page (F2), and email confirmations and reminders (F4). F3 and F5 are stubbed
+under `src/features/`.
 
 ## Stack
 
 Next.js 15 (App Router) · TypeScript (strict) · Tailwind CSS v4 + shadcn/ui · Drizzle ORM +
 PostgreSQL · Auth.js v5 (magic link via Resend, Google OAuth) · Zod · date-fns + @date-fns/tz ·
-Vitest · Playwright · GitHub Actions
+Resend + React Email · Inngest · Vitest · Playwright · GitHub Actions
 
 ## Getting started
 
@@ -26,6 +27,11 @@ pnpm dev
 
 Sign-in providers switch on when their keys are set: `AUTH_RESEND_KEY` for magic links,
 `AUTH_GOOGLE_ID` + `AUTH_GOOGLE_SECRET` for Google.
+
+Booking emails print to the server log until a Resend key is set. Reminders need Inngest:
+run `pnpm dlx inngest-cli@latest dev` next to `pnpm dev` and set `INNGEST_DEV=1`. In
+production, set `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` and point Inngest at
+`/api/inngest`. See `src/features/emails/README.md`, including the SPF/DKIM/DMARC setup.
 
 ## Scripts
 
@@ -54,6 +60,7 @@ src/
   auth.ts                 Auth.js config (database sessions, Drizzle adapter)
   db/schema.ts            full v1 data model
   features/               F1–F5, one folder each (see features/README.md)
+  inngest/                background jobs (email notifications, reminders)
   lib/                    tokens, username rules, utils
   components/ui/          shadcn/ui components
 drizzle/                  SQL migrations (0001 = double-booking exclusion constraint)
@@ -69,7 +76,8 @@ e2e/                      Playwright smoke tests
   inserts for one slot yield exactly one booking. Catch losers with `isSlotTakenError`.
 - **Time:** bookings are `timestamptz` (UTC); availability is wall-clock `time` + the host's
   IANA zone on `users.timezone`.
-- **Manage links:** 256-bit random tokens, only the SHA-256 hash is stored.
+- **Manage links:** HMAC-SHA256 of the booking id with `MANAGE_LINK_SECRET`; only the SHA-256
+  hash is stored, and background jobs rebuild links without the token passing through a queue.
 - **Reschedules are in-place updates** that bump `ics_sequence` (same ICS UID), with each change
   logged in `booking_events` for the booking-history panel.
 - **Idempotent emails:** `email_log.idempotency_key` is unique, so retried reminder jobs can't
@@ -88,6 +96,5 @@ the target database as part of the deploy.
 
 ## Not set up yet (by phase)
 
-- Phase 3: Resend + React Email templates, `ics`, Inngest/Trigger.dev for reminders
 - Phase 4: FullCalendar
 - Phase 5: Sentry, PostHog, Upstash rate limiting and Cloudflare Turnstile on public booking

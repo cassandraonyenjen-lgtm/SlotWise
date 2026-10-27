@@ -8,6 +8,7 @@ const nav = [
   { href: "/dashboard/calendar", label: "Calendar" },
   { href: "/dashboard/meeting-types", label: "Meeting types" },
   { href: "/dashboard/availability", label: "Availability" },
+  { href: "/dashboard/settings", label: "Settings" },
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

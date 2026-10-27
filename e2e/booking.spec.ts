@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { countBookings, createHost, signIn } from "./helpers";
+import { countBookings, createHost, sentEmailTypes, signIn } from "./helpers";
 
 // Invitees in New York booking a host in Lagos: everything they see must be in their zone.
 test.use({ timezoneId: "America/New_York" });
@@ -47,6 +47,10 @@ test("invitee books in their own time zone without an account (F2.3, F2.4, F2.5)
   );
   await expect(page.getByRole("link", { name: /\.ics/ })).toHaveAttribute("download", /\.ics$/);
   expect(await countBookings(host.userId)).toBe(1);
+  // Confirmation emails go out right after the booking (F4.1, F4.2).
+  await expect
+    .poll(() => sentEmailTypes(host.userId))
+    .toEqual(["host_notification", "invitee_confirmation"]);
 });
 
 test("switching time zone updates the times shown (F2.3)", async ({ page }) => {

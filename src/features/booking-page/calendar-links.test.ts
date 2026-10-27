@@ -25,6 +25,27 @@ describe("calendar links", () => {
     expect(ics).toContain("DTEND:20300107T093000Z");
   });
 
+  it("defaults to a confirmed REQUEST", () => {
+    const ics = buildIcs(event);
+    expect(ics).toContain("METHOD:REQUEST");
+    expect(ics).toContain("STATUS:CONFIRMED");
+  });
+
+  it("cancels the same event with METHOD:CANCEL and a higher sequence (F4.4)", () => {
+    const ics = buildIcs({ ...event, sequence: 2 }, { method: "CANCEL" });
+    expect(ics).toContain("METHOD:CANCEL");
+    expect(ics).toContain("STATUS:CANCELLED");
+    expect(ics).toContain("UID:abc-123@slotwise.app");
+    expect(ics).toContain("SEQUENCE:2");
+  });
+
+  it("lists the invitee as an attendee", () => {
+    const ics = buildIcs(event, { attendee: { name: "Ada", email: "ada@example.com" } });
+    // Long lines are folded at 75 characters, so check the unfolded text.
+    const unfolded = ics.replace(/\r?\n[ \t]/g, "");
+    expect(unfolded).toMatch(/ATTENDEE;.*mailto:ada@example\.com/);
+  });
+
   it("builds a Google Calendar link in UTC", () => {
     const url = new URL(googleCalendarUrl(event));
     expect(url.searchParams.get("dates")).toBe("20300107T090000Z/20300107T093000Z");

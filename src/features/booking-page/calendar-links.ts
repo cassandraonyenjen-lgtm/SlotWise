@@ -4,8 +4,19 @@ import type { CalendarEvent } from "./calendar-urls";
 export type { CalendarEvent } from "./calendar-urls";
 export { googleCalendarUrl, outlookCalendarUrl } from "./calendar-urls";
 
-/** Standards-compliant .ics text with a stable UID, so later updates replace this event (F4.4). */
-export function buildIcs(event: CalendarEvent): string {
+export interface IcsOptions {
+  /** REQUEST for new or moved meetings, CANCEL to remove the event from calendars. */
+  method?: "REQUEST" | "CANCEL";
+  attendee?: { name: string; email: string };
+}
+
+/**
+ * Standards-compliant .ics text. The UID never changes for a booking and SEQUENCE goes up with
+ * every change, so calendar apps update or cancel the original event instead of adding a new
+ * one (F4.4).
+ */
+export function buildIcs(event: CalendarEvent, options: IcsOptions = {}): string {
+  const method = options.method ?? "REQUEST";
   const toArray = (d: Date) =>
     [
       d.getUTCFullYear(),
@@ -26,9 +37,22 @@ export function buildIcs(event: CalendarEvent): string {
     end: toArray(event.endAt),
     endInputType: "utc",
     endOutputType: "utc",
-    status: "CONFIRMED",
+    status: method === "CANCEL" ? "CANCELLED" : "CONFIRMED",
+    method,
     productId: "slotwise/ics",
     ...(event.organizer ? { organizer: event.organizer } : {}),
+    ...(options.attendee
+      ? {
+          attendees: [
+            {
+              ...options.attendee,
+              rsvp: false,
+              partstat: "ACCEPTED" as const,
+              role: "REQ-PARTICIPANT" as const,
+            },
+          ],
+        }
+      : {}),
   });
   if (error || !value) throw error ?? new Error("Could not build calendar file");
   return value;
